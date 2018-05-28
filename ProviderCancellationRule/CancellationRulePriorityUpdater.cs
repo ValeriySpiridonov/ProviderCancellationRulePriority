@@ -20,7 +20,7 @@ namespace ProviderCancellationRule
         public void Execute()
         {
             List<Provider> providers = GetAllProviders();
-            foreach (var provider in providers.Where(provider => provider.Id == 2180))
+            foreach (var provider in providers.Where(provider => provider.Id == 2180)) // TODO: убрать перед использованием
             {
                     ProviderCancellationRulePriorityUpdater providerCancellationRulePriorityUpdater =
                         new ProviderCancellationRulePriorityUpdater(provider, _connectionString, _logger);
