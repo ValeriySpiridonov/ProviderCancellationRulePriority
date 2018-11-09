@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Data.SqlClient;
 using System.Linq;
 using ProviderCancellationRule.Entities;
@@ -20,6 +21,12 @@ namespace ProviderCancellationRule
         public void Execute()
         {
             List<Provider> providers = GetAllProviders();
+            string specificProvidersSetting = ConfigurationManager.AppSettings["SpecificProviders"];
+            if (!String.IsNullOrEmpty(specificProvidersSetting))
+            {
+                IEnumerable<int> specificProviders = specificProvidersSetting.Split(',').Select(Int32.Parse);
+                providers = providers.FindAll(provider => specificProviders.Contains(provider.Id));
+            }
             foreach (var provider in providers.Where(provider => provider.Id == 2180)) // TODO: убрать перед использованием
             {
                     ProviderCancellationRulePriorityUpdater providerCancellationRulePriorityUpdater =

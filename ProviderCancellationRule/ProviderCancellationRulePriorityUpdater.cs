@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Data.SqlClient;
 using System.Linq;
 using ProviderCancellationRule.Entities;
@@ -67,21 +68,25 @@ namespace ProviderCancellationRule
 
         private void SetCancellationRulePriority(int cancellationRuleId, int priority)
         {
-            //string queryString = $"UPDATE cancellation_rule SET priority={priority} WHERE id_cancellation_rule={cancellationRuleId}";
+            bool needUpdate = Boolean.Parse(ConfigurationManager.AppSettings["NeedUpdate"]);
+            if (needUpdate)
+            {
+                string queryString = $"UPDATE cancellation_rule SET priority={priority} WHERE id_cancellation_rule={cancellationRuleId}";
 
-            //using ( SqlConnection connection = new SqlConnection( _connectionString ) )
-            //{
-            //    SqlCommand command = new SqlCommand( queryString, connection );
-            //    connection.Open();
-            //    try
-            //    {
-            //        command.ExecuteNonQuery();
-            //    }
-            //    finally
-            //    {
-            //        connection.Close();
-            //    }
-            //}
+                using (SqlConnection connection = new SqlConnection(_connectionString))
+                {
+                    SqlCommand command = new SqlCommand(queryString, connection);
+                    connection.Open();
+                    try
+                    {
+                        command.ExecuteNonQuery();
+                    }
+                    finally
+                    {
+                        connection.Close();
+                    }
+                }
+            }
         }
 
         /// <summary>
