@@ -27,7 +27,7 @@ namespace ProviderCancellationRule
                 IEnumerable<int> specificProviders = specificProvidersSetting.Split(',').Select(Int32.Parse);
                 providers = providers.FindAll(provider => specificProviders.Contains(provider.Id));
             }
-            foreach (var provider in providers.Where(provider => provider.Id == 2180)) // TODO: убрать перед использованием
+            foreach (var provider in providers)
             {
                     ProviderCancellationRulePriorityUpdater providerCancellationRulePriorityUpdater =
                         new ProviderCancellationRulePriorityUpdater(provider, _connectionString, _logger);
