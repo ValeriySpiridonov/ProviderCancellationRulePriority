@@ -19,10 +19,7 @@ namespace ProviderCancellationRule
         private readonly Provider _provider;
         private readonly string _connectionString;
         private readonly ILogger _logger;
-        private List<SpecialOffer> _specialOffers;
         private Booking _avgBooking;
-
-        private const int LastPeriodInMonth = 3;
 
         public ProviderCancellationRulePriorityUpdater(Provider provider, string connectionString, ILogger logger)
         {
@@ -34,36 +31,46 @@ namespace ProviderCancellationRule
 
         public void Execute()
         {
+            _logger.Warning( $"{_provider.Id}" );
             _avgBooking = GetAvgBooking();
             if (_avgBooking.IsEmpty())
             {
-                _logger.Warning( $"provider: {_provider}. No Data");
-                return;
+//                _logger.Warning( $"provider: {_provider}. No Data");
+                _avgBooking = new Booking
+                {
+                    AmountBeforeTax = 19820,
+                    PrepaySum = 2644,
+                    RoomTypeCount = 1
+                };
             }
 
-            _specialOffers = GetSpecialOffers(_provider.Id);
-            _logger.Info($"provider: {_provider}. avg_booking: {_avgBooking}");
+            _logger.Info($"{_avgBooking}");
             List<CancellationRule> cancellationRules = GetCancellationRules();
 
             List<CancellationRulePenalty> result = new List<CancellationRulePenalty>();
             int maxCancellationBeforeArrivalValue = GetMaxCancellationBeforeArrivalValue() + 1;
-            _logger.Info( $"MaxCancellationBeforeArrivalValue={maxCancellationBeforeArrivalValue}" );
-            CancellationRulePenaltyCalculator cancellationRulePenaltyCalculator = new CancellationRulePenaltyCalculator(_avgBooking, maxCancellationBeforeArrivalValue, _specialOffers, _logger, _connectionString );
+//            _logger.Info( $"MaxCancellationBeforeArrivalValue={maxCancellationBeforeArrivalValue}" );
+            CancellationRulePenaltyCalculator cancellationRulePenaltyCalculator = new CancellationRulePenaltyCalculator(
+                _avgBooking, 
+                maxCancellationBeforeArrivalValue, 
+                _logger, 
+                _connectionString );
             foreach ( CancellationRule cancellationRule in cancellationRules)
             {
-                _logger.Info( $"cancellation_rule: {cancellationRule}" );
+//                _logger.Info( $"cancellation_rule: {cancellationRule}" );
                 decimal penalty = cancellationRulePenaltyCalculator.Calculate( cancellationRule);
                 result.Add(new CancellationRulePenalty {CancellationRuleId = cancellationRule.Id, Penalty = penalty});
             }
 
             List<int> sortedCancellationRuleIds = result.OrderByDescending(penalty => penalty.Penalty).Select(penalty => penalty.CancellationRuleId).ToList();
-            _logger.Info( string.Empty );
-            _logger.Info($"set priority for provider: {_provider}");
+            string rules= String.Empty;
             for (int index = 0; index < sortedCancellationRuleIds.Count; index++)
             {
-                _logger.Info($"cancellationRule: {cancellationRules.Find(rule => rule.Id == sortedCancellationRuleIds[ index ] )}, penalty={result.Find(cancellationRulePenalty => cancellationRulePenalty.CancellationRuleId == sortedCancellationRuleIds[ index ] ).Penalty}, priority: {index}");
+//                _logger.Info($"cancellationRule: {cancellationRules.Find(rule => rule.Id == sortedCancellationRuleIds[ index ] )}, penalty={result.Find(cancellationRulePenalty => cancellationRulePenalty.CancellationRuleId == sortedCancellationRuleIds[ index ] ).Penalty}, priority: {index}");
                 SetCancellationRulePriority(sortedCancellationRuleIds[index], index);
+                rules += $"{sortedCancellationRuleIds[index]} = {index} ";
             }
+            _logger.Info( rules );
         }
 
         private void SetCancellationRulePriority(int cancellationRuleId, int priority)
@@ -151,9 +158,19 @@ namespace ProviderCancellationRule
         private Booking GetAvgBooking()
         {
             Booking booking = null;
-            string queryString = "SELECT ISNULL(AVG(b.amount_before_tax),0) amount_before_tax, ISNULL(AVG(b.prepay_sum),0) prepay_sum, ISNULL(AVG(brt.count),0) booking_room_type_count FROM booking b " + // $"SELECT AVG(amount_after_tax/brt.count) FROM booking b " +
-                                 "LEFT JOIN (SELECT id_booking, COUNT(*) [count] FROM booking_room_type GROUP BY id_booking ) brt ON b.id_booking = brt.id_booking " +
-                                 $"WHERE id_provider={_provider.Id} and creation_date >= DATEADD(month, -{LastPeriodInMonth}, GETDATE())";
+
+            string queryString =
+                @"SELECT 
+	ISNULL(AVG(b.amount_before_tax),0) amount_before_tax, 
+	ISNULL(AVG(b.prepay_sum),0) prepay_sum, 
+	1 booking_room_type_count
+FROM booking b 
+WHERE 
+	" + $"id_provider={_provider.Id} " +
+	@"AND id_booking > 32000000
+	AND b.status in (1,2) 
+	AND b.permanent_number is null 
+	AND b.source<>'BS-CHANNEL_MANAGER'";
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 SqlCommand command = new SqlCommand(queryString, connection);
@@ -203,37 +220,6 @@ namespace ProviderCancellationRule
                             Name = reader["name"] as string,
                             ReferencePointKind = (CancellationReferencePointKind) Convert.ToByte(reader["reference_point"])
                         });
-                    }
-                }
-                finally
-                {
-                    reader.Close();
-                }
-            }
-
-            return result;
-        }
-
-        private List<SpecialOffer> GetSpecialOffers(int providerId)
-        {
-            List<SpecialOffer> result = new List<SpecialOffer>();
-            string queryString = $"SELECT * FROM [special_offer] WHERE [id_provider] = {providerId}";
-            using ( SqlConnection connection = new SqlConnection( _connectionString ) )
-            {
-                SqlCommand command = new SqlCommand( queryString, connection );
-                connection.Open();
-                SqlDataReader reader = command.ExecuteReader();
-                try
-                {
-                    while ( reader.Read() )
-                    {
-                        result.Add( new SpecialOffer()
-                        {
-                            Id = Convert.ToInt32( reader[ "id_special_offer" ] ),
-                            Name = Convert.ToString( reader[ "name" ] ),
-                            CancellationRuleId = Convert.ToInt32( reader[ "id_cancellation_rule" ] ),
-                            IsEnabled = Convert.ToBoolean( reader[ "is_enabled" ] )
-                        } );
                     }
                 }
                 finally

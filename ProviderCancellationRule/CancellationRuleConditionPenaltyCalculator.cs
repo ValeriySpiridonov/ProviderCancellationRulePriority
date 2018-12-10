@@ -51,12 +51,12 @@ namespace ProviderCancellationRule
                         k = cancellationRuleCondition.CancellationBeforeArrivalUnit == TimeUnit.Day ? betweenValue * 24 : betweenValue;
                         break;
                     case CancellationBeforeArrivalMatching.NoMatter:
-                        k = _maxCancellationBeforeArrivalValue;
+                        k = _maxCancellationBeforeArrivalValue + 1;
                         break;
                 }
             }
 
-            _logger.Info( $"\t\tcondition: {cancellationRuleCondition}, penalty: {penalty} * k:{k} = {penalty * k}" );
+//            _logger.Info( $"\t\tcondition: {cancellationRuleCondition}, penalty: {penalty} * k:{k} = {penalty * k}" );
             return penalty * k;
         }
     }

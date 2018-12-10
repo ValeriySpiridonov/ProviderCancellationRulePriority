@@ -29,16 +29,23 @@ namespace ProviderCancellationRule
             }
             foreach (var provider in providers)
             {
+                try
+                {
                     ProviderCancellationRulePriorityUpdater providerCancellationRulePriorityUpdater =
-                        new ProviderCancellationRulePriorityUpdater(provider, _connectionString, _logger);
+                        new ProviderCancellationRulePriorityUpdater( provider, _connectionString, _logger );
                     providerCancellationRulePriorityUpdater.Execute();
+                }
+                catch (Exception e)
+                {
+                    _logger.Error(e.Message);
+                }
             }
         }
 
         List<Provider> GetAllProviders()
         {
             List<Provider> result = new List<Provider>();
-            string queryString = "select p.*, c.tzid  from [provider] p inner join city c on p.id_city = c.id_city";
+            string queryString = "select p.*, c.tzid  from [provider] p inner join city c on p.id_city = c.id_city order by p.id_provider";
             using ( SqlConnection connection = new SqlConnection( _connectionString ) )
             {
                 SqlCommand command = new SqlCommand( queryString, connection );

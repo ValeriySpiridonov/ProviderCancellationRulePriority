@@ -59,9 +59,7 @@
     <Compile Include="ProviderCancellationRulePriorityUpdater.cs" />
     <Compile Include="ConsoleLogger.cs" />
     <Compile Include="Entities\CancellationRuleCondition.cs" />
-    <Compile Include="Entities\CancellationRuleConditionPeriod.cs" />
     <Compile Include="Entities\Provider.cs" />
-    <Compile Include="Entities\SpecialOffer.cs" />
     <Compile Include="Entities\Enums\TimeUnit.cs" />
     <Compile Include="ILogger.cs" />
     <Compile Include="Program.cs" />

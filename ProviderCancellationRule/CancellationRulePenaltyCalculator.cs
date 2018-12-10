@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
-using System.Linq;
 using ProviderCancellationRule.Entities;
 using ProviderCancellationRule.Entities.Enums;
 
@@ -13,14 +12,16 @@ namespace ProviderCancellationRule
         private readonly Booking _avgBooking;
         private readonly int _maxCancellationBeforeArrivalValue;
         private readonly ILogger _logger;
-        private readonly List<SpecialOffer> _specialOffers;
         private readonly string _connectionString;
 
-        public CancellationRulePenaltyCalculator(Booking avgBooking, int maxCancellationBeforeArrivalValue, List<SpecialOffer> specialOffers, ILogger logger, string connectionString )
+        public CancellationRulePenaltyCalculator(
+            Booking avgBooking, 
+            int maxCancellationBeforeArrivalValue, 
+            ILogger logger, 
+            string connectionString )
         {
             _avgBooking = avgBooking;
             _maxCancellationBeforeArrivalValue = maxCancellationBeforeArrivalValue;
-            _specialOffers = specialOffers;
             _logger = logger;
             _connectionString = connectionString;
         }
@@ -29,34 +30,17 @@ namespace ProviderCancellationRule
         {
             decimal penalty = 0;
             
-            if ( CheckForNotEnabledSpecialOffers( cancellationRule ) )
-            {
-                _logger.Warning($"CheckForNotEnabledSpecialOffers" );
-                return penalty;
-            }
-
-            if ( cancellationRule.DisplayStatus == CancellationRuleDisplayStatus.None )
-            {
-                _logger.Warning( $"CancellationRuleDisplayStatus.None" );
-                return penalty;
-            }
-
             List<CancellationRuleCondition> cancellationRuleConditions = GetActiveCancellationRuleConditions( cancellationRule.Id, DateTime.Now );
-//            int maxCancellationBeforeArrivalValue = Math.Max(cancellationRuleConditions.Max(condition => condition.CancellationBeforeArrivalUnit == TimeUnit.Day ? condition.CancellationBeforeArrivalValue * 24 : condition.CancellationBeforeArrivalValue ), cancellationRuleConditions.Max(condition => condition.CancellationBeforeArrivalUnit == TimeUnit.Day ? condition.CancellationBeforeArrivalValueMax * 24 : condition.CancellationBeforeArrivalValueMax ) );
-//            _logger.Info($"\tMaxCancellationBeforeArrivalValue={maxCancellationBeforeArrivalValue}" );
             CancellationRuleConditionPenaltyCalculator cancellationRuleConditionPenaltyCalculator = new CancellationRuleConditionPenaltyCalculator(_maxCancellationBeforeArrivalValue, _logger);
 
             foreach ( CancellationRuleCondition cancellationRuleCondition in cancellationRuleConditions )
             {
-                if ( cancellationRuleCondition.PenaltyCalcMode != CancellationPenaltyCalcMode.NoPenalty
-                    // && cancellationRuleConditionPenaltyCalculator.IsConditionActualForDate( cancellationRuleCondition, now, referencePointDateTime )
-                    )
+                if ( cancellationRuleCondition.PenaltyCalcMode != CancellationPenaltyCalcMode.NoPenalty )
                 {
                     penalty += cancellationRuleConditionPenaltyCalculator.Calculate( cancellationRuleCondition, _avgBooking );
                 }
             }
 
-            _logger.Info( $"\tCancellationRule penalty={penalty}" );
             return penalty;
         }
 
@@ -115,11 +99,6 @@ namespace ProviderCancellationRule
             }
 
             return result;
-        }
-
-        private bool CheckForNotEnabledSpecialOffers( CancellationRule cancellationRule )
-        {
-            return _specialOffers.Where( offer => offer.CancellationRuleId == cancellationRule.Id ).All( offer => !offer.IsEnabled );
         }
     }
 }

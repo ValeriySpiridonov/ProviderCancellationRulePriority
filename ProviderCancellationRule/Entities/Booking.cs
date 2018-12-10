@@ -19,7 +19,7 @@ namespace ProviderCancellationRule.Entities
 
         public bool IsEmpty()
         {
-            return AmountBeforeTax == 0 && PrepaySum == 0 && RoomTypeCount == 0;
+            return AmountBeforeTax == 0 && PrepaySum == 0;
         }
     }
 }
