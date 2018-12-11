@@ -6,58 +6,66 @@ namespace ProviderCancellationRule
 {
     class CancellationRuleConditionPenaltyCalculator
     {
-        private readonly int _maxCancellationBeforeArrivalValue;
         private readonly ILogger _logger;
 
-        public CancellationRuleConditionPenaltyCalculator(int maxCancellationBeforeArrivalValue, ILogger logger)
+        public CancellationRuleConditionPenaltyCalculator(ILogger logger)
         {
-            _maxCancellationBeforeArrivalValue = maxCancellationBeforeArrivalValue;
             _logger = logger;
         }
 
-        public decimal Calculate(CancellationRuleCondition cancellationRuleCondition, Booking booking)
+        public decimal Calculate(CancellationRuleCondition cancellationRuleCondition)
         {
-            decimal penalty = 0;
-
-            switch ( cancellationRuleCondition.PenaltyCalcMode )
-            {
-                case CancellationPenaltyCalcMode.Percent:
-                    penalty = booking.AmountBeforeTax * cancellationRuleCondition.PenaltyValue / 100;
-                    break;
-                case CancellationPenaltyCalcMode.Fixed:
-                    penalty = Math.Min( booking.AmountBeforeTax, cancellationRuleCondition.PenaltyValue );
-                    break;
-                case CancellationPenaltyCalcMode.FirstNightPercent:
-                    penalty = ( booking.AmountBeforeTax / booking.RoomTypeCount ) * cancellationRuleCondition.PenaltyValue / 100;
-                    break;
-                case CancellationPenaltyCalcMode.PrepaymentPercent:
-                    penalty = booking.PrepaySum * cancellationRuleCondition.PenaltyValue / 100;
-                    break;
-                case CancellationPenaltyCalcMode.FirstNights:
-                    penalty = ( booking.AmountBeforeTax / booking.RoomTypeCount ) * cancellationRuleCondition.PenaltyValue;
-                    break;
-            }
-
-            int k = 1;
+            int totalHoursBeforeArrival = 0;
             if (cancellationRuleCondition.CancellationBeforeArrivalUnit != TimeUnit.None)
             {
+                int maxTotalHoursBeforeArrival = 365 * 2 * 24; // Как бы два года
                 switch (cancellationRuleCondition.CancellationBeforeArrivalMatching)
                 {
                     case CancellationBeforeArrivalMatching.AtLeast:
-                        k = cancellationRuleCondition.CancellationBeforeArrivalUnit == TimeUnit.Day ? cancellationRuleCondition.CancellationBeforeArrivalValue * 24 : cancellationRuleCondition.CancellationBeforeArrivalValue;
+                        var atLeastValue = cancellationRuleCondition.CancellationBeforeArrivalUnit == TimeUnit.Day
+                            ? cancellationRuleCondition.CancellationBeforeArrivalValue * 24
+                            : cancellationRuleCondition.CancellationBeforeArrivalValue;
+
+                        totalHoursBeforeArrival = maxTotalHoursBeforeArrival - atLeastValue;
                         break;
                     case CancellationBeforeArrivalMatching.Between:
                         int betweenValue = cancellationRuleCondition.CancellationBeforeArrivalValueMax - cancellationRuleCondition.CancellationBeforeArrivalValue;
-                        k = cancellationRuleCondition.CancellationBeforeArrivalUnit == TimeUnit.Day ? betweenValue * 24 : betweenValue;
+                        totalHoursBeforeArrival = cancellationRuleCondition.CancellationBeforeArrivalUnit == TimeUnit.Day ? betweenValue * 24 : betweenValue;
+                        break;
+                    case CancellationBeforeArrivalMatching.NoMoreThan:
+                        var noMoreValue = cancellationRuleCondition.CancellationBeforeArrivalUnit == TimeUnit.Day
+                            ? cancellationRuleCondition.CancellationBeforeArrivalValue * 24
+                            : cancellationRuleCondition.CancellationBeforeArrivalValue;
+                        totalHoursBeforeArrival = noMoreValue;
                         break;
                     case CancellationBeforeArrivalMatching.NoMatter:
-                        k = _maxCancellationBeforeArrivalValue + 1;
+                        totalHoursBeforeArrival = maxTotalHoursBeforeArrival;
                         break;
                 }
             }
 
-//            _logger.Info( $"\t\tcondition: {cancellationRuleCondition}, penalty: {penalty} * k:{k} = {penalty * k}" );
-            return penalty * k;
+            decimal conditionWeight = 0;
+            switch ( cancellationRuleCondition.PenaltyCalcMode )
+            {
+                case CancellationPenaltyCalcMode.Percent:
+                    conditionWeight = 2;
+                    break;
+                case CancellationPenaltyCalcMode.Fixed:
+                    conditionWeight = 0; // таких нет на проде
+                    break;
+                case CancellationPenaltyCalcMode.FirstNightPercent:
+                    conditionWeight = 1;
+                    break;
+                case CancellationPenaltyCalcMode.PrepaymentPercent:
+                    conditionWeight = cancellationRuleCondition.PenaltyValue == 100m ? 5 : 3; // При проценте предоплаты равном 100 - считаем правило более приоритетным
+                    break;
+                case CancellationPenaltyCalcMode.FirstNights:
+                    conditionWeight = 4;
+                    break;
+            }
+
+            // _logger.Info( $"\t\tcondition: {cancellationRuleCondition}, totalHoursBeforeArrival: {totalHoursBeforeArrival} * conditionWeight:{conditionWeight} = {conditionWeight * totalHoursBeforeArrival}" );
+            return totalHoursBeforeArrival * conditionWeight;
         }
     }
 }

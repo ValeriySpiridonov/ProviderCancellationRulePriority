@@ -45,7 +45,10 @@ namespace ProviderCancellationRule
         List<Provider> GetAllProviders()
         {
             List<Provider> result = new List<Provider>();
-            string queryString = "select p.*, c.tzid  from [provider] p inner join city c on p.id_city = c.id_city order by p.id_provider";
+            string queryString = @"select p.*, c.tzid  from [provider] p 
+                inner join city c on p.id_city = c.id_city 
+                where not exists(select * from special_offer so where so.id_provider = p.id_provider and is_default_rate_mix = 1  )
+                order by p.id_provider";
             using ( SqlConnection connection = new SqlConnection( _connectionString ) )
             {
                 SqlCommand command = new SqlCommand( queryString, connection );

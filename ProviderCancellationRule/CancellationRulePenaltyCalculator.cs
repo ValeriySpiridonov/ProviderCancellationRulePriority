@@ -9,19 +9,13 @@ namespace ProviderCancellationRule
 {
     class CancellationRulePenaltyCalculator
     {
-        private readonly Booking _avgBooking;
-        private readonly int _maxCancellationBeforeArrivalValue;
         private readonly ILogger _logger;
         private readonly string _connectionString;
 
         public CancellationRulePenaltyCalculator(
-            Booking avgBooking, 
-            int maxCancellationBeforeArrivalValue, 
             ILogger logger, 
             string connectionString )
         {
-            _avgBooking = avgBooking;
-            _maxCancellationBeforeArrivalValue = maxCancellationBeforeArrivalValue;
             _logger = logger;
             _connectionString = connectionString;
         }
@@ -31,13 +25,14 @@ namespace ProviderCancellationRule
             decimal penalty = 0;
             
             List<CancellationRuleCondition> cancellationRuleConditions = GetActiveCancellationRuleConditions( cancellationRule.Id, DateTime.Now );
-            CancellationRuleConditionPenaltyCalculator cancellationRuleConditionPenaltyCalculator = new CancellationRuleConditionPenaltyCalculator(_maxCancellationBeforeArrivalValue, _logger);
+            CancellationRuleConditionPenaltyCalculator cancellationRuleConditionPenaltyCalculator = new CancellationRuleConditionPenaltyCalculator(_logger);
 
             foreach ( CancellationRuleCondition cancellationRuleCondition in cancellationRuleConditions )
             {
                 if ( cancellationRuleCondition.PenaltyCalcMode != CancellationPenaltyCalcMode.NoPenalty )
                 {
-                    penalty += cancellationRuleConditionPenaltyCalculator.Calculate( cancellationRuleCondition, _avgBooking );
+                    var currentConditionPenalty = cancellationRuleConditionPenaltyCalculator.Calculate( cancellationRuleCondition );
+                    penalty += currentConditionPenalty;
                 }
             }
 

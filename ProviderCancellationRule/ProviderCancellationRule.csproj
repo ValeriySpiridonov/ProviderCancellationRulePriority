@@ -47,7 +47,6 @@
     <Compile Include="CancellationRuleHelper.cs" />
     <Compile Include="CancellationRulePenaltyCalculator.cs" />
     <Compile Include="DateTimeUtil.cs" />
-    <Compile Include="Entities\Booking.cs" />
     <Compile Include="Entities\Enums\CancellationPenaltyCalcMode.cs" />
     <Compile Include="Entities\Enums\CancellationGuestQuantityMatching.cs" />
     <Compile Include="Entities\Enums\CancellationRoomTypeQuantityMatching.cs" />
