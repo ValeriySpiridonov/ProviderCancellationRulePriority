@@ -57,7 +57,7 @@ namespace ProviderCancellationRule
             for (int index = 0; index < sortedCancellationRuleIds.Count; index++)
             {
                 var power = result.Find( cancellationRulePenalty => cancellationRulePenalty.CancellationRuleId == sortedCancellationRuleIds[ index ] ).Power;
-                _logger.Info($"cancellationRule: {cancellationRules.Find(rule => rule.Id == sortedCancellationRuleIds[ index ] )}, powerDays={power.Item1}, powerWeidth={power.Item2}, priority: {index}");
+                _logger.Info($"Rule: {cancellationRules.Find(rule => rule.Id == sortedCancellationRuleIds[ index ] )}, PRIORITY: {index}");
                 SetCancellationRulePriority(sortedCancellationRuleIds[index], index);
                 rules += $"{sortedCancellationRuleIds[index]} = {index} ";
             }
