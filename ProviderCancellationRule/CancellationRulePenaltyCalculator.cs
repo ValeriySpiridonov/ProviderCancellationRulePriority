@@ -20,9 +20,9 @@ namespace ProviderCancellationRule
             _connectionString = connectionString;
         }
 
-        public decimal Calculate( CancellationRule cancellationRule )
+        public Tuple<int, int> Calculate( CancellationRule cancellationRule )
         {
-            decimal penalty = 0;
+            Tuple<int, int, int> cancellationRulePower = null;
             
             List<CancellationRuleCondition> cancellationRuleConditions = GetActiveCancellationRuleConditions( cancellationRule.Id, DateTime.Now );
             CancellationRuleConditionPenaltyCalculator cancellationRuleConditionPenaltyCalculator = new CancellationRuleConditionPenaltyCalculator(_logger);
@@ -32,11 +32,47 @@ namespace ProviderCancellationRule
                 if ( cancellationRuleCondition.PenaltyCalcMode != CancellationPenaltyCalcMode.NoPenalty )
                 {
                     var currentConditionPenalty = cancellationRuleConditionPenaltyCalculator.Calculate( cancellationRuleCondition );
-                    penalty += currentConditionPenalty;
+                    cancellationRulePower = cancellationRulePower == null
+                        ? GetRulePower( currentConditionPenalty )
+                        : GetRulePower( cancellationRulePower, currentConditionPenalty );
                 }
             }
 
-            return penalty;
+            int totalAffectedDays = cancellationRulePower?.Item2 - cancellationRulePower?.Item1 ?? 0;
+
+            return Tuple.Create( totalAffectedDays, cancellationRulePower?.Item3 ?? 0 );
+        }
+
+        private Tuple<int, int, int> GetRulePower( Tuple<int, int, int> cancellationRulePower, Tuple<int, int, int> conditionPower )
+        {
+            int totalHours = 0;
+            if ( conditionPower.Item1 < cancellationRulePower.Item1 )
+            {
+                totalHours += cancellationRulePower.Item1 - conditionPower.Item1;
+            }
+
+            if ( conditionPower.Item2 > cancellationRulePower.Item2 )
+            {
+                totalHours += conditionPower.Item2 - cancellationRulePower.Item2;
+            }
+
+            int conditionWeight = totalHours * conditionPower.Item3;
+            int totalRuleWeight = conditionWeight + cancellationRulePower.Item3;
+
+            return Tuple.Create(
+                Math.Min( conditionPower.Item1, cancellationRulePower.Item1 ),
+                Math.Max( conditionPower.Item2, cancellationRulePower.Item2 ),
+                totalRuleWeight );
+        }
+
+        private Tuple<int, int, int> GetRulePower( Tuple<int, int, int> conditionPower )
+        {
+            int totalHours = conditionPower.Item2 - conditionPower.Item1;
+
+            return Tuple.Create(
+                conditionPower.Item1,
+                conditionPower.Item2,
+                conditionPower.Item3 * totalHours );
         }
 
         private List<CancellationRuleCondition> GetActiveCancellationRuleConditions( int cancellationRuleId, DateTime date )

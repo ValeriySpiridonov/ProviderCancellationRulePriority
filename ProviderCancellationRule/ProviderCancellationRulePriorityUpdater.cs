@@ -11,7 +11,11 @@ namespace ProviderCancellationRule
     class CancellationRulePenalty
     {
         public int CancellationRuleId { get; set; }
-        public decimal Penalty { get; set; }
+
+        /// <summary>
+        /// Мощность правила (всего дней, полный вес правила)
+        /// </summary>
+        public Tuple<int,int> Power { get; set; }
     }
 
     internal class ProviderCancellationRulePriorityUpdater
@@ -41,15 +45,19 @@ namespace ProviderCancellationRule
             foreach ( CancellationRule cancellationRule in cancellationRules)
             {
                 //_logger.Info( $"cancellation_rule: {cancellationRule}" );
-                decimal penalty = cancellationRulePenaltyCalculator.Calculate( cancellationRule);
-                result.Add(new CancellationRulePenalty {CancellationRuleId = cancellationRule.Id, Penalty = penalty});
+                var power = cancellationRulePenaltyCalculator.Calculate( cancellationRule);
+                result.Add( new CancellationRulePenalty { CancellationRuleId = cancellationRule.Id, Power = power } );
             }
 
-            List<int> sortedCancellationRuleIds = result.OrderByDescending(penalty => penalty.Penalty).Select(penalty => penalty.CancellationRuleId).ToList();
+            List<int> sortedCancellationRuleIds = result
+                .OrderByDescending(penalty => penalty.Power.Item1)
+                .ThenByDescending( penalty => penalty.Power.Item2 )
+                .Select(penalty => penalty.CancellationRuleId).ToList();
             string rules= String.Empty;
             for (int index = 0; index < sortedCancellationRuleIds.Count; index++)
             {
-                _logger.Info($"cancellationRule: {cancellationRules.Find(rule => rule.Id == sortedCancellationRuleIds[ index ] )}, penalty={result.Find(cancellationRulePenalty => cancellationRulePenalty.CancellationRuleId == sortedCancellationRuleIds[ index ] ).Penalty}, priority: {index}");
+                var power = result.Find( cancellationRulePenalty => cancellationRulePenalty.CancellationRuleId == sortedCancellationRuleIds[ index ] ).Power;
+                _logger.Info($"cancellationRule: {cancellationRules.Find(rule => rule.Id == sortedCancellationRuleIds[ index ] )}, powerDays={power.Item1}, powerWeidth={power.Item2}, priority: {index}");
                 SetCancellationRulePriority(sortedCancellationRuleIds[index], index);
                 rules += $"{sortedCancellationRuleIds[index]} = {index} ";
             }

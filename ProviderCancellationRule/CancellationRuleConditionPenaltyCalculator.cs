@@ -13,38 +13,42 @@ namespace ProviderCancellationRule
             _logger = logger;
         }
 
-        public decimal Calculate(CancellationRuleCondition cancellationRuleCondition)
+        public Tuple<int, int, int> Calculate(CancellationRuleCondition cancellationRuleCondition)
         {
-            int totalHoursBeforeArrival = 0;
+            int from = 0;
+            int to = 0;
             if (cancellationRuleCondition.CancellationBeforeArrivalUnit != TimeUnit.None)
             {
                 int maxTotalHoursBeforeArrival = 365 * 2 * 24; // Как бы два года
                 switch (cancellationRuleCondition.CancellationBeforeArrivalMatching)
                 {
                     case CancellationBeforeArrivalMatching.AtLeast:
-                        var atLeastValue = cancellationRuleCondition.CancellationBeforeArrivalUnit == TimeUnit.Day
-                            ? cancellationRuleCondition.CancellationBeforeArrivalValue * 24
-                            : cancellationRuleCondition.CancellationBeforeArrivalValue;
-
-                        totalHoursBeforeArrival = maxTotalHoursBeforeArrival - atLeastValue;
+                        from = cancellationRuleCondition.CancellationBeforeArrivalValue;
+                        to = maxTotalHoursBeforeArrival;
                         break;
                     case CancellationBeforeArrivalMatching.Between:
-                        int betweenValue = cancellationRuleCondition.CancellationBeforeArrivalValueMax - cancellationRuleCondition.CancellationBeforeArrivalValue;
-                        totalHoursBeforeArrival = cancellationRuleCondition.CancellationBeforeArrivalUnit == TimeUnit.Day ? betweenValue * 24 : betweenValue;
+                        from = cancellationRuleCondition.CancellationBeforeArrivalValue;
+                        to = cancellationRuleCondition.CancellationBeforeArrivalValueMax;
                         break;
                     case CancellationBeforeArrivalMatching.NoMoreThan:
-                        var noMoreValue = cancellationRuleCondition.CancellationBeforeArrivalUnit == TimeUnit.Day
-                            ? cancellationRuleCondition.CancellationBeforeArrivalValue * 24
-                            : cancellationRuleCondition.CancellationBeforeArrivalValue;
-                        totalHoursBeforeArrival = noMoreValue;
+                        from = 0;
+                        to = cancellationRuleCondition.CancellationBeforeArrivalValue;
                         break;
                     case CancellationBeforeArrivalMatching.NoMatter:
-                        totalHoursBeforeArrival = maxTotalHoursBeforeArrival;
+                        from = 0;
+                        to = maxTotalHoursBeforeArrival;
                         break;
                 }
             }
 
-            decimal conditionWeight = 0;
+            from = cancellationRuleCondition.CancellationBeforeArrivalUnit == TimeUnit.Day
+                ? from * 24
+                : from;
+            to = cancellationRuleCondition.CancellationBeforeArrivalUnit == TimeUnit.Day
+                ? to * 24
+                : to;
+
+            int conditionWeight = 0;
             switch ( cancellationRuleCondition.PenaltyCalcMode )
             {
                 case CancellationPenaltyCalcMode.Percent:
@@ -64,8 +68,10 @@ namespace ProviderCancellationRule
                     break;
             }
 
+            return Tuple.Create( from, to, conditionWeight );
+
             // _logger.Info( $"\t\tcondition: {cancellationRuleCondition}, totalHoursBeforeArrival: {totalHoursBeforeArrival} * conditionWeight:{conditionWeight} = {conditionWeight * totalHoursBeforeArrival}" );
-            return totalHoursBeforeArrival * conditionWeight;
+            // return totalHoursBeforeArrival * conditionWeight;
         }
     }
 }
