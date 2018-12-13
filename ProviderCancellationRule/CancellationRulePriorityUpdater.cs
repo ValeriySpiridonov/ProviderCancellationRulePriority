@@ -11,22 +11,23 @@ namespace ProviderCancellationRule
     {
         private readonly string _connectionString;
         private readonly ILogger _logger;
+        private readonly List<int> _specifiedProviders;
 
-        public CancellationRulePriorityUpdater(string connectionString, ILogger logger)
+        public CancellationRulePriorityUpdater(string connectionString, ILogger logger, List<int> specifiedProviders)
         {
             _connectionString = connectionString;
             _logger = logger;
+            _specifiedProviders = specifiedProviders;
         }
 
         public void Execute()
         {
             List<Provider> providers = GetAllProviders();
-            string specificProvidersSetting = ConfigurationManager.AppSettings["SpecificProviders"];
-            if (!String.IsNullOrEmpty(specificProvidersSetting))
+            if ( _specifiedProviders != null )
             {
-                IEnumerable<int> specificProviders = specificProvidersSetting.Split(',').Select(Int32.Parse);
-                providers = providers.FindAll(provider => specificProviders.Contains(provider.Id));
+                providers = providers.FindAll( provider => _specifiedProviders.Contains( provider.Id ) );
             }
+
             foreach (var provider in providers)
             {
                 try
